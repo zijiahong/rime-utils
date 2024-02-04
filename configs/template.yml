@@ -1,0 +1,40 @@
+LoggerConfig:
+  Level: info
+
+Timeout: 60
+
+RouterPrefix: /api
+
+Debug: true
+
+DetailLimitNum: 10000
+
+SinglePageLimit: 1000
+
+ESConfig:
+  ResponseHeaderTimeoutSeconds: 30
+  Host: http://10.26.80.144:19200
+
+
+MySQLConfig:
+  Host: 192.168.88.203
+  Port: 3306
+  User: test_api_user
+  Password: rimedata2022
+  DBName: test_api
+  LogMode: control
+
+RedisPersistentConfig:
+  Host: 192.168.88.203
+  Port: 6381
+  
+ESIndexConfig:
+  RosterFundIndex: api_fund_v1
+  RosterFundManagerIndex: api_fund_manager_v1
+  RosterLPIndex: api_lp_v1
+
+OauthConfig:
+  JWTSigningKey: "g8q7ymtsp0gkfooia96blbzkv8ajgms4"
+  TokenExpirationDays: 365
+  EnableRegistration: false
+  TokenStorageFilename: "./tokens/token"
