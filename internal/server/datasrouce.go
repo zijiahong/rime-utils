@@ -1,10 +1,13 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"gitlab.mvalley.com/wind/rime-utils/internal/pkg/config"
 	"gitlab.mvalley.com/wind/rime-utils/pkg/models"
+	"gitlab.mvalley.com/wind/rime-utils/pkg/utils"
 )
 
 type DataSourceRequest struct {
@@ -17,9 +20,10 @@ type DataSourceResponse struct {
 }
 
 type DataSource struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	IP   string `json:"ip"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	IP     string `json:"ip"`
+	Source string `json:"source"`
 }
 
 // 获取数据源列表
@@ -31,9 +35,9 @@ func (s *Server) GetDataSource(ctx *gin.Context, req DataSourceRequest) (*DataSo
 	}
 	for i := range sourceList {
 		res = append(res, DataSource{
-			ID:   sourceList[i].RecId,
-			Name: sourceList[i].Name,
-			IP:   sourceList[i].Host,
+			ID:     sourceList[i].RecId,
+			Name:   sourceList[i].Name,
+			Source: sourceList[i].SourceConfig,
 		})
 	}
 	return &DataSourceResponse{
@@ -59,7 +63,14 @@ func (s *Server) GetMysqlDatabases(ctx *gin.Context, req GetMysqlDatabasesReques
 		return nil, fmt.Errorf("datasource not fount")
 	}
 
-	db, err := s.storage.GetMysqlClient(ds.Host, ds.Port, ds.User, ds.Password, "information_schema")
+	var mc config.MySQLConfiguration
+	err = json.Unmarshal([]byte(ds.SourceConfig), &mc)
+	if err != nil {
+		return nil, err
+	}
+
+	mc.DBName = "information_schema"
+	db, err := utils.GetMysqlClient(mc)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +103,16 @@ func (s *Server) GetMysqlTables(ctx *gin.Context, req GetMysqlTablesRequest) (*G
 	if ds == nil {
 		return nil, fmt.Errorf("datasource not fount")
 	}
-	db, err := s.storage.GetMysqlClient(ds.Host, ds.Port, ds.User, ds.Password, req.DataBase)
+
+	var mc config.MySQLConfiguration
+	err = json.Unmarshal([]byte(ds.SourceConfig), &mc)
+	if err != nil {
+		return nil, err
+	}
+
+	mc.DBName = req.DataBase
+
+	db, err := utils.GetMysqlClient(mc)
 	if err != nil {
 		return nil, err
 	}

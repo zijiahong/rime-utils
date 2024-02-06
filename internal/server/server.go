@@ -20,7 +20,7 @@ type Server struct {
 }
 
 func New() *Server {
-	st := storage.InitStorage()
+	st := storage.InitStorage(config.CONFIG.MySQLConfig)
 
 	return &Server{
 		storage: st,

@@ -17,6 +17,12 @@ type MySQLConfiguration struct {
 	TimeZone string
 }
 
+type MongoDBConfiguration struct {
+	Host   string
+	DBName string
+	Debug  bool
+}
+
 var CONFIG config
 
 // MySQLLogMode ...

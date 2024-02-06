@@ -2,37 +2,29 @@ package storage
 
 import (
 	"errors"
-	"sync"
 
+	"gitlab.mvalley.com/wind/rime-utils/internal/pkg/config"
 	"gitlab.mvalley.com/wind/rime-utils/pkg/models"
 	"gitlab.mvalley.com/wind/rime-utils/pkg/utils"
 	"gorm.io/gorm"
 )
 
 type Storage struct {
-	DB             *gorm.DB
-	MySqlDatabases map[string]*gorm.DB
-	mu             sync.Mutex
+	DB *gorm.DB
 }
 
-func InitStorage() *Storage {
-	return nil
-}
+var S Storage
 
-func (s *Storage) GetMysqlClient(host, port, user, password, dbName string) (*gorm.DB, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	key := host + port + dbName
-	db, ex := s.MySqlDatabases[key]
-	if !ex {
-		newDB, err := utils.InitMysql(host, port, user, password, dbName)
-		if err != nil {
-			return nil, err
-		}
-		s.MySqlDatabases[key] = newDB
-		db = newDB
+func InitStorage(config config.MySQLConfiguration) *Storage {
+	db, err := utils.InitMysql(config)
+	if err != nil {
+		panic(err)
 	}
-	return db, nil
+
+	// panic
+	models.AutoMigrate(db)
+
+	return &Storage{DB: db}
 }
 
 func (s *Storage) GetDataSource(sourceType models.SourceType, sourcePlatform models.SourcePlatform) (res []models.DataSource, err error) {
