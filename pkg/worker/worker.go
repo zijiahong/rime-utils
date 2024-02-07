@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"gitlab.mvalley.com/wind/rime-utils/internal/pkg/storage"
+	"gitlab.mvalley.com/wind/rime-utils/pkg/models"
 )
 
 type Job interface {
@@ -22,11 +23,15 @@ type Worker struct {
 	storage  *storage.Storage
 }
 
-func NewWorker(storage *storage.Storage, workers int) *Worker {
+var MaxQueueCount int64 = 100000
+var MaxWorkerCount int64 = 100
+
+func NewWorker(storage *storage.Storage, workers int64) *Worker {
+	MaxWorkerCount = workers
 	return &Worker{
-		jobQueue: make(chan Job, 100000), // 消息队列
+		jobQueue: make(chan Job, MaxQueueCount), // 消息队列
 		jobMap:   make(map[string]Job),
-		RunCount: make(chan int, workers), // 最大运行数
+		RunCount: make(chan int, MaxWorkerCount), // 最大运行数
 		storage:  storage,
 	}
 }
@@ -88,4 +93,22 @@ func (w *Worker) Stop(id string) {
 		return
 	}
 	job.Stop()
+}
+
+// 添加任务
+func (w *Worker) AppendJobs(tasks []models.SubTask) {
+	for i := range tasks {
+		task := tasks[i]
+		if task.BatchSize == 0 {
+			task.BatchSize = BatchSize2K
+		}
+		switch tasks[i].SourceType {
+		case models.SourceTypeMySQL:
+			w.Append(NewMysqlJob(task))
+		case models.SourceTypeMongo:
+			w.Append(NewMongoJob(task))
+		case models.SourceTypeElasticSearch:
+			// TODO:
+		}
+	}
 }

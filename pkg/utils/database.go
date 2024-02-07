@@ -19,6 +19,7 @@ type dBStore struct {
 func InitDBStore() {
 	DBStore = &dBStore{
 		MySqlDatabases: make(map[string]*gorm.DB),
+		MongoDatabases: make(map[string]*mongo.Database),
 	}
 }
 

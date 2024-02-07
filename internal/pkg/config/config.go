@@ -2,7 +2,6 @@ package config
 
 type config struct {
 	Port        string
-	Timeout     int
 	MySQLConfig MySQLConfiguration
 }
 type MySQLConfiguration struct {
@@ -21,6 +20,13 @@ type MongoDBConfiguration struct {
 	Host   string
 	DBName string
 	Debug  bool
+}
+
+type ESConfiguration struct {
+	Host                         []string
+	User                         string
+	Password                     string
+	ResponseHeaderTimeoutSeconds int
 }
 
 var CONFIG config

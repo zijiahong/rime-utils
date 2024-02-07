@@ -8,12 +8,13 @@ import (
 
 type Task struct {
 	BaseModel
-	SourceConfig SourceConfig
-	TargetConfig SourceConfig
+	SourceConfig ResourceConfig
+	TargetConfig ResourceConfig
 	StartTime    time.Time
 	EndTime      time.Time
 	LastedLog    string
 	SyncStatus   SyncStatus
+	SourceType   ResourceType
 }
 
 func (t *Task) TableName() string {
@@ -25,10 +26,11 @@ type SubTask struct {
 	ParentTaskID string // 主任务
 
 	// 数据库配置
-	SourceConfig SourceConfig `gorm:"type:text"`
-	SourceTable  string       // 源表
-	TargetConfig SourceConfig `gorm:"type:text"`
-	TargetTable  string       // 目标表
+	SourceConfig ResourceConfig `gorm:"type:text"`
+	SourceTable  string         // 源表
+	TargetConfig ResourceConfig `gorm:"type:text"`
+	TargetTable  string         // 目标表
+	SourceType   ResourceType
 
 	// 同步程序参数
 	Next       string     // 同步游标
@@ -54,6 +56,7 @@ const (
 	SyncStatusDone   SyncStatus = "done"
 	SyncStatusWaring SyncStatus = "waring"
 	SyncStatusError  SyncStatus = "error"
+	SyncStatusDelete SyncStatus = "delete"
 )
 
 func autoMigrateTask(db *gorm.DB) {

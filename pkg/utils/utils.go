@@ -2,13 +2,17 @@ package utils
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/elastic/go-elasticsearch/v7"
 	cfg "gitlab.mvalley.com/wind/rime-utils/internal/pkg/config"
 	"go.mongodb.org/mongo-driver/event"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -117,4 +121,37 @@ func PerformMongoDBInsert(documents []interface{}, collection *mongo.Collection)
 		}
 	}
 	return nil
+}
+
+// InitElasticsearch ...
+func InitElasticsearch(config cfg.ESConfiguration) (*elasticsearch.Client, error) {
+	var cfg = elasticsearch.Config{
+		Addresses: config.Host,
+		Username:  config.User,
+		Password:  config.Password,
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost:   10,
+			ResponseHeaderTimeout: time.Duration(config.ResponseHeaderTimeoutSeconds) * time.Second,
+			DialContext:           (&net.Dialer{Timeout: time.Second}).DialContext,
+			TLSClientConfig: &tls.Config{
+				MinVersion:         tls.VersionTLS11,
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+
+	esClient, err := elasticsearch.NewClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	ping, err := esClient.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	if ping.IsError() || ping.StatusCode != http.StatusOK {
+		panic(fmt.Sprintf("%v", ping))
+	}
+	return esClient, nil
 }

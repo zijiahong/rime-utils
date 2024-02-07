@@ -11,16 +11,22 @@ import (
 	"github.com/gin-gonic/gin"
 	"gitlab.mvalley.com/wind/rime-utils/internal/pkg/config"
 	"gitlab.mvalley.com/wind/rime-utils/internal/pkg/storage"
+	"gitlab.mvalley.com/wind/rime-utils/pkg/worker"
 )
 
 type Server struct {
 	app             *gin.Engine
 	storage         *storage.Storage
 	routerWhiteList map[string]struct{}
+	w               *worker.Worker
 }
 
 func New() *Server {
 	st := storage.InitStorage(config.CONFIG.MySQLConfig)
+	w := worker.NewWorker(st, 50)
+	defer w.Run()
+
+	// TODO: 将数据库中的任务拿出来再跑一遍
 
 	return &Server{
 		storage: st,
@@ -28,6 +34,7 @@ func New() *Server {
 		routerWhiteList: map[string]struct{}{
 			"Run": {},
 		},
+		w: w,
 	}
 }
 

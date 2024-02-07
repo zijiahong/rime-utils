@@ -14,42 +14,64 @@ type BaseModel struct {
 	UpdatedAt time.Time
 }
 
-type SourceType string
+type ResourceType string
 
 const (
-	SourceTypeElasticSearch SourceType = "elastic_search"
-	SourceTypeMongo         SourceType = "mongo"
-	SourceTypeMySQL         SourceType = "mysql"
+	SourceTypeElasticSearch ResourceType = "elastic_search"
+	SourceTypeMongo         ResourceType = "mongo"
+	SourceTypeMySQL         ResourceType = "mysql"
 )
 
-type SourcePlatform string
+type ResourcePlatform string
 
 const (
-	SourcePlatformProd SourcePlatform = "prod" // 正式
-	SourcePlatformDev  SourcePlatform = "dev"  // 开发
-	SourcePlatformTest SourcePlatform = "test" // 测试
+	SourcePlatformProd ResourcePlatform = "prod" // 正式
+	SourcePlatformDev  ResourcePlatform = "dev"  // 开发
+	SourcePlatformTest ResourcePlatform = "test" // 测试
 )
 
-type SourceConfig string
+type ResourceConfig string
 
-func (s SourceConfig) UnmarshalMysqlConfig() (res config.MySQLConfiguration, err error) {
+func (s ResourceConfig) UnmarshalMysqlConfig() (res config.MySQLConfiguration, err error) {
 	err = json.Unmarshal([]byte(s), &res)
 	return
 }
 
-// TODO
-func (s SourceConfig) UnmarshalESConfig() (res config.MySQLConfiguration, err error) {
+func (s ResourceConfig) UnmarshalElasticSearchConfig() (res config.ESConfiguration, err error) {
 	err = json.Unmarshal([]byte(s), &res)
 	return
 }
 
-// TODO
-func (s SourceConfig) UnmarshalMongoConfig() (res config.MongoDBConfiguration, err error) {
+func (s ResourceConfig) UnmarshalMongoConfig() (res config.MongoDBConfiguration, err error) {
 	err = json.Unmarshal([]byte(s), &res)
 	return
+}
+
+func (s ResourceConfig) FillDataBase(db string, t ResourceType) (ResourceConfig, error) {
+	switch t {
+	case SourceTypeMongo:
+		a, err := s.UnmarshalMongoConfig()
+		if err != nil {
+			return "", err
+		}
+		a.DBName = db
+		b, err := json.Marshal(a)
+		return ResourceConfig(b), err
+	case SourceTypeMySQL:
+		a, err := s.UnmarshalMysqlConfig()
+		if err != nil {
+			return "", err
+		}
+		a.DBName = db
+		b, err := json.Marshal(a)
+		return ResourceConfig(b), err
+	}
+	return s, nil
 }
 
 func AutoMigrate(db *gorm.DB) {
 	autoMigrateTask(db)
-	autoMigrateSource(db)
+	autoMigrateResource(db)
+
+	initDataResourceList(db)
 }

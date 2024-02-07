@@ -10,43 +10,42 @@ import (
 	"gitlab.mvalley.com/wind/rime-utils/pkg/utils"
 )
 
-type DataSourceRequest struct {
-	SourcePlatform models.SourcePlatform `json:"source_platform"`
-	SourceType     models.SourceType     `json:"source_type"`
+type ResourceListRequest struct {
+	ResourcePlatform models.ResourcePlatform `json:"resource_platform"`
+	ResourceType     models.ResourceType     `json:"resource_type"`
 }
 
-type DataSourceResponse struct {
-	DataSourceList []DataSource `json:"data_source_list"`
+type ResourceListResponse struct {
+	ResourceList []DataResource `json:"resource_list"`
 }
 
-type DataSource struct {
+type DataResource struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
-	IP     string `json:"ip"`
 	Source string `json:"source"`
 }
 
 // 获取数据源列表
-func (s *Server) GetDataSource(ctx *gin.Context, req DataSourceRequest) (*DataSourceResponse, error) {
-	res := make([]DataSource, 0)
-	sourceList, err := s.storage.GetDataSource(req.SourceType, req.SourcePlatform)
+func (s *Server) GetResourceList(ctx *gin.Context, req ResourceListRequest) (*ResourceListResponse, error) {
+	res := make([]DataResource, 0)
+	resourceList, err := s.storage.GetDataResource(req.ResourceType, req.ResourcePlatform)
 	if err != nil {
 		return nil, err
 	}
-	for i := range sourceList {
-		res = append(res, DataSource{
-			ID:     sourceList[i].RecId,
-			Name:   sourceList[i].Name,
-			Source: sourceList[i].SourceConfig,
+	for i := range resourceList {
+		res = append(res, DataResource{
+			ID:     resourceList[i].RecId,
+			Name:   resourceList[i].Name,
+			Source: string(resourceList[i].ResourceConfig),
 		})
 	}
-	return &DataSourceResponse{
-		DataSourceList: res,
+	return &ResourceListResponse{
+		ResourceList: res,
 	}, nil
 }
 
 type GetMysqlDatabasesRequest struct {
-	DataSourceID string `json:"data_source_id"`
+	ResourceID string `json:"resource_id"`
 }
 
 type GetMysqlDatabasesResponse struct {
@@ -55,7 +54,7 @@ type GetMysqlDatabasesResponse struct {
 
 // Mysql
 func (s *Server) GetMysqlDatabases(ctx *gin.Context, req GetMysqlDatabasesRequest) (*GetMysqlDatabasesResponse, error) {
-	ds, err := s.storage.GetDataSourceByID(req.DataSourceID)
+	ds, err := s.storage.GetDataResourceByID(req.ResourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +63,7 @@ func (s *Server) GetMysqlDatabases(ctx *gin.Context, req GetMysqlDatabasesReques
 	}
 
 	var mc config.MySQLConfiguration
-	err = json.Unmarshal([]byte(ds.SourceConfig), &mc)
+	err = json.Unmarshal([]byte(ds.ResourceConfig), &mc)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +86,8 @@ func (s *Server) GetMysqlDatabases(ctx *gin.Context, req GetMysqlDatabasesReques
 }
 
 type GetMysqlTablesRequest struct {
-	DataSourceID string `json:"data_source_id"`
-	DataBase     string `json:"data_base"`
+	ResourceID string `json:"resource_id"`
+	DataBase   string `json:"data_base"`
 }
 
 type GetMysqlTablesResponse struct {
@@ -96,7 +95,7 @@ type GetMysqlTablesResponse struct {
 }
 
 func (s *Server) GetMysqlTables(ctx *gin.Context, req GetMysqlTablesRequest) (*GetMysqlTablesResponse, error) {
-	ds, err := s.storage.GetDataSourceByID(req.DataSourceID)
+	ds, err := s.storage.GetDataResourceByID(req.ResourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +104,7 @@ func (s *Server) GetMysqlTables(ctx *gin.Context, req GetMysqlTablesRequest) (*G
 	}
 
 	var mc config.MySQLConfiguration
-	err = json.Unmarshal([]byte(ds.SourceConfig), &mc)
+	err = json.Unmarshal([]byte(ds.ResourceConfig), &mc)
 	if err != nil {
 		return nil, err
 	}

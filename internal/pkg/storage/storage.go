@@ -13,7 +13,7 @@ type Storage struct {
 	DB *gorm.DB
 }
 
-var S Storage
+var S *Storage
 
 func InitStorage(config config.MySQLConfiguration) *Storage {
 	db, err := utils.InitMysql(config)
@@ -23,17 +23,17 @@ func InitStorage(config config.MySQLConfiguration) *Storage {
 
 	// panic
 	models.AutoMigrate(db)
-
-	return &Storage{DB: db}
+	S = &Storage{DB: db}
+	return S
 }
 
-func (s *Storage) GetDataSource(sourceType models.SourceType, sourcePlatform models.SourcePlatform) (res []models.DataSource, err error) {
-	err = s.DB.Model(&models.DataSource{}).Where("source_type = ?", sourceType).Where("source_platform = ?", sourcePlatform).Scan(&res).Error
+func (s *Storage) GetDataResource(sourceType models.ResourceType, sourcePlatform models.ResourcePlatform) (res []models.DataResource, err error) {
+	err = s.DB.Model(&models.DataResource{}).Where("resource_type = ?", sourceType).Where("resource_platform = ?", sourcePlatform).Scan(&res).Error
 	return
 }
 
-func (s *Storage) GetDataSourceByID(id string) (res *models.DataSource, err error) {
-	err = s.DB.Model(&models.DataSource{}).Where("rec = ?", id).First(&res).Error
+func (s *Storage) GetDataResourceByID(id string) (res *models.DataResource, err error) {
+	err = s.DB.Model(&models.DataResource{}).Where("rec_id = ?", id).First(&res).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

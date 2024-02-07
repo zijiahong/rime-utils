@@ -42,9 +42,9 @@ func TestWorker(t *testing.T) {
 			ParentTaskID: "test",
 
 			// // 数据库配置
-			SourceConfig: models.SourceConfig(sourceB),
+			SourceConfig: models.ResourceConfig(sourceB),
 			SourceTable:  "funds",
-			TargetConfig: models.SourceConfig(sourceB),
+			TargetConfig: models.ResourceConfig(sourceB),
 			TargetTable:  "copy_funds",
 			BatchSize:    2000,
 		},

@@ -24,7 +24,7 @@ type MysqlJob struct {
 	stopCh chan struct{}
 }
 
-func NewMysqlWork(id string, task models.SubTask) Job {
+func NewMysqlJob(task models.SubTask) Job {
 	return &MysqlJob{
 		stopCh:  make(chan struct{}),
 		SubTask: task,
@@ -45,6 +45,7 @@ func (m *MysqlJob) SaveSyncTask() error {
 func (m *MysqlJob) Run() {
 	// 任务开始
 	m.SyncStatus = models.SyncStatusDoing
+
 	go m.SaveSyncTask()
 
 	// 连接同步源
@@ -86,6 +87,25 @@ func (m *MysqlJob) Run() {
 			m.setError(err)
 			return
 		}
+
+		// TODO: 删除外健依赖
+		// 	SELECT
+		// 	TABLE_NAME,
+		// 	COLUMN_NAME,
+		// 	CONSTRAINT_NAME,
+		// 	REFERENCED_TABLE_NAME,
+		// 	REFERENCED_COLUMN_NAME
+		// FROM
+		// 	information_schema.KEY_COLUMN_USAGE
+		// WHERE
+		// 	TABLE_SCHEMA = 'prod_da_pevc_20211216' AND
+		// 	TABLE_NAME = 'deal_sources' AND
+		// 	CONSTRAINT_NAME LIKE 'FK%';
+
+		// 		ALTER TABLE table_name
+		// DROP FOREIGN KEY constraint_name1,
+		// DROP FOREIGN KEY constraint_name2,
+		// DROP FOREIGN KEY constraint_name3;
 	}
 
 	// 查询总数

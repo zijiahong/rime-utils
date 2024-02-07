@@ -2,22 +2,29 @@ package worker
 
 import (
 	"context"
-	"fmt"
 
 	"gitlab.mvalley.com/wind/rime-utils/internal/pkg/storage"
 	"gitlab.mvalley.com/wind/rime-utils/pkg/models"
 	"gitlab.mvalley.com/wind/rime-utils/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+type MongoIndexModel struct {
+	Key    map[string]int
+	Name   string
+	NS     string
+	Unique bool
+}
 
 type MongoJob struct {
 	models.SubTask
 	stopCh chan struct{}
 }
 
-func NewMongoJob(id string, task models.SubTask) Job {
+func NewMongoJob(task models.SubTask) Job {
 	return &MongoJob{
 		stopCh:  make(chan struct{}),
 		SubTask: task,
@@ -70,6 +77,13 @@ func (m *MongoJob) Run() {
 
 	// 如果不存在创建表
 	ex, err := containCollection(targetDB, m.TargetTable)
+	if err != nil {
+		m.setError(err)
+		return
+	}
+	// 查询主键
+	pkm := "_id"
+
 	if !ex {
 		// 获取源集合的索引信息
 		err := targetDB.CreateCollection(context.Background(), m.TargetTable)
@@ -84,13 +98,19 @@ func (m *MongoJob) Run() {
 		}
 		// 在目标集合中创建相同的索引
 		for indexes.Next(context.Background()) {
-			var indexDescription mongo.IndexModel
+			var indexDescription MongoIndexModel
 			if err := indexes.Decode(&indexDescription); err != nil {
 				m.setError(err)
 				return
 			}
+			if indexDescription.Key[pkm] == 1 {
+				continue
+			}
 			// 创建索引
-			_, err := targetCollection.Indexes().CreateOne(context.Background(), indexDescription)
+			_, err := targetCollection.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+				Keys:    indexDescription.Key,
+				Options: options.Index().SetUnique(indexDescription.Unique).SetName(indexDescription.Name),
+			})
 			if err != nil {
 				m.setError(err)
 				return
@@ -100,15 +120,12 @@ func (m *MongoJob) Run() {
 
 	// 查询总数
 	var count int64
-	count, err = sourceDB.Collection(m.SourceTable).CountDocuments(context.Background(), nil, nil, nil)
+	count, err = sourceDB.Collection(m.SourceTable).CountDocuments(context.Background(), bson.M{})
 	if err != nil {
 		m.setError(err)
 		return
 	}
 	m.TotalCount = count
-
-	// 查询主键
-	pkm := "_id"
 
 	// 开始同步数据
 	for {
@@ -118,7 +135,7 @@ func (m *MongoJob) Run() {
 			m.SyncStatus = models.SyncStatusPause
 			return
 		default:
-			sourceData, err := getMongoData(sourceCollection, m.Next, m.BatchSize, m.SourceTable, pkm)
+			sourceData, err := getMongoData(sourceCollection, m.Next, m.BatchSize, pkm)
 			if err != nil {
 				m.setError(err)
 				return
@@ -134,7 +151,7 @@ func (m *MongoJob) Run() {
 				m.setError(err)
 				return
 			}
-			m.Next = fmt.Sprint(sourceData[len(sourceData)-1][pkm])
+			m.Next = sourceData[len(sourceData)-1][pkm].(primitive.ObjectID).Hex()
 			m.Batch++
 		}
 	}
@@ -147,7 +164,7 @@ func (m *MongoJob) setError(err error) {
 }
 
 func containCollection(db *mongo.Database, collection string) (bool, error) {
-	s, err := db.ListCollectionNames(context.Background(), nil)
+	s, err := db.ListCollectionNames(context.Background(), bson.M{})
 	if err != nil {
 		return false, err
 	}
@@ -159,22 +176,28 @@ func containCollection(db *mongo.Database, collection string) (bool, error) {
 	return false, nil
 }
 
-func getMongoData(collection *mongo.Collection, next string, limit int64, tableName, primaryKey string) (res []map[string]interface{}, err error) {
+func getMongoData(collection *mongo.Collection, next string, limit int64, primaryKey string) (res []map[string]interface{}, err error) {
 	var cur *mongo.Cursor
 	if next != "" {
+		var objectId primitive.ObjectID
+		objectId, err = primitive.ObjectIDFromHex(next)
+		if err != nil {
+			return
+		}
 		filters := bson.M{
 			"_id": bson.M{
-				"$lt": next,
+				"$gt": objectId,
 			},
 		}
 		cur, err = collection.Find(context.Background(), filters, options.Find().SetLimit(limit).SetSort(bson.D{{"_id", 1}}))
+		cur.All(context.Background(), &res)
 		if err != nil {
 			return nil, err
 		}
-
+		return
 	}
 
-	cur, err = collection.Find(context.Background(), nil, options.Find().SetLimit(limit).SetSort(bson.D{{"_id", 1}}))
+	cur, err = collection.Find(context.Background(), bson.M{}, options.Find().SetLimit(limit).SetSort(bson.D{{"_id", 1}}))
 	if err != nil {
 		return
 	}
@@ -184,6 +207,10 @@ func getMongoData(collection *mongo.Collection, next string, limit int64, tableN
 
 func insetMongoData(collection *mongo.Collection, res []map[string]interface{}) error {
 	_, err := collection.InsertMany(context.Background(), toInterfaceArray(res), options.InsertMany().SetOrdered(false))
+	// 忽略唯一健冲突
+	if mongo.IsDuplicateKeyError(err) {
+		return nil
+	}
 	return err
 }
 
